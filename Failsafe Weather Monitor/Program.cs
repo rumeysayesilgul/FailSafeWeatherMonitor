@@ -1,4 +1,5 @@
-﻿using FailSafeWeatherMonitor.Data;
+﻿using System.Text.Json;
+using FailSafeWeatherMonitor.Data;
 using FailSafeWeatherMonitor.Services;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -12,38 +13,46 @@ try
 
     Console.WriteLine("Databasen är redo.");
 
-    string filePath = Path.Combine(
-      AppContext.BaseDirectory, "weather_data.csv");
+    var service = new OpenMeteoService();
+    var result = await service.FetchAndSaveAsync();
 
-    var importer = new CsvImportService();
-    var result = await importer.ImportAsync(filePath);
+    var measurement = result.Measurement;
 
+    Console.WriteLine($"Station: {measurement.StationName}");
     Console.WriteLine(
-        $"{result.Imported} rader importerade, " +
-        $"{result.Rejected} rader förkastade på grund av fel.");
-
+        $"Tid: {measurement.Timestamp:yyyy-MM-dd HH:mm} UTC");
     Console.WriteLine(
-        $"{result.Skipped} mätningar överhoppade som dubbletter.");
+        $"Temperatur: {measurement.Temperature:F1} °C");
+    Console.WriteLine(
+        $"Luftfuktighet: {measurement.Humidity:F1} %");
 
-    string logPath = Path.Combine(
-        AppContext.BaseDirectory, "bad_data.log");
-
-    string[] logLines = await File.ReadAllLinesAsync(logPath);
-
-    Console.WriteLine($"Antal rader i felloggen: {logLines.Length}");
-    Console.WriteLine($"Fellogg: {logPath}");
+    Console.WriteLine(result.Saved
+        ? "Mätningen sparades i databasen."
+        : "Mätningen finns redan och sparades inte igen.");
+}
+catch (HttpRequestException ex)
+{
+    Console.WriteLine($"Kunde inte hämta väderdata: {ex.Message}");
+}
+catch (OperationCanceledException)
+{
+    Console.WriteLine("API-anropet tog för lång tid. Försök igen.");
+}
+catch (JsonException ex)
+{
+    Console.WriteLine($"Kunde inte tolka API-svarets JSON: {ex.Message}");
+}
+catch (InvalidDataException ex)
+{
+    Console.WriteLine($"Fel i API-svarets väderdata: {ex.Message}");
 }
 catch (IOException ex)
 {
     Console.WriteLine($"Filfel: {ex.Message}");
 }
-catch (UnauthorizedAccessException ex)
-{
-    Console.WriteLine($"Åtkomst till filen nekades: {ex.Message}");
-}
 catch (DbUpdateException ex)
 {
-    Console.WriteLine($"Kunde inte spara mätningarna: {ex.Message}");
+    Console.WriteLine($"Kunde inte spara mätningen: {ex.Message}");
 }
 catch (SqlException ex)
 {
