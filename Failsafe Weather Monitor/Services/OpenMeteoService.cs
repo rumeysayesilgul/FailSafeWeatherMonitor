@@ -12,7 +12,7 @@ public class OpenMeteoService
     private static readonly HttpClient client = new();
 
     private const string ApiUrl =
-        "https://api.open-meteo.com/v1/forecast" +
+      "https://api.open-meteo.com/v1/forecast" +
         "?latitude=57.6832&longitude=11.9511" +
         "&hourly=temperature_2m,relative_humidity_2m";
     public async Task<(WeatherDataPoint Measurement, bool Saved)>
